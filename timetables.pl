@@ -126,15 +126,21 @@ montar_tuplas_dia(Dia, TuplasDia) :-
 		montar_tuplas_horario(TuplasHorario, Dia, Horario)
 		), TuplasDia).
 
-montar_tuplas_horario(TuplasHorario, Dia, Horario) :-
+montar_tuplas_horario(TuplasHorario, Dia, Horario, MaxPessoas) :-
 	findall((Horario, Pessoa, Funcao), (
-			turno(N, Horario, Funcao),
+			turno(MaxPessoas, Horario, Funcao),
 			disponivel(Pessoa, Horario),
 			disponivel(Pessoa, Dia)
 		), TuplasHorario).
 
-% filtrar_horario(TuplasHorario) :-
-% 	turno(N, Horario,)
+remover_pessoa(TuplasHorarioNova, TuplasHorarioVelha, MaxPessoas) :-
+	nth0(MaxPessoas, TuplasHorarioNova, Element),
+	delete(TuplasHorarioVelha, Element, TuplasHorarioNova).
+	%remover_pessoa(TuplasHorarioNova, TuplasHorarioVelha).
+
+filtrar_horario(TuplasHorarioFiltrada, Dia, Horario) :-
+	montar_tuplas_horario(TuplasHorario, Dia, Horario, MaxPessoas),
+	remover_pessoa(TuplasHorario, TuplasHorarioFiltrada, MaxPessoas).
 
 % filtrar_dia(TuplasDia, TuplasFiltradas) :-
 % 	filtrar_dia(TuplasDia, TuplasFiltradas, 0).
