@@ -5,7 +5,6 @@ horario(8).
 horario(10).
 horario(14).
 
-% turno(Quantidade, Horario, Funcao)
 turno(1, 8, professor).
 turno(1, 10, professor).
 turno(1, 14, professor).
@@ -22,7 +21,7 @@ disponivel(vanessa, 10).
 disponivel(vanessa, ter).
 disponivel(vanessa, qui).
 disponivel(mirela, qui).
-disponivel(milela, 8).
+disponivel(mirela, 8).
 
 % REGRAS DE DISPONIBILIDADE
 disponivel(Pessoa, Horario) :-
@@ -53,13 +52,20 @@ disponivel(Pessoa, Dia) :-
 
 disponivel_a_partir(tinos, 10).
 disponivel_a_partir(joca, seg).
-disponivel_a_partir(michele, seg).
+disponivel_a_partir(michele, ter).
 disponivel_a_partir(michele, 8).
 
 disponivel_ate(joca, qua).
-disponivel_ate(michele, sex).
+disponivel_ate(michele, qua).
 
-% Cria lista com os dias disponiveis de uma pessoa
+disponivel_dia_horario(Pessoa, Dia, Horario) :-
+	dias_semana(Dias),
+	member(Dia, Dias),
+	horario(Horario),
+	disponivel(Pessoa, Dia),
+	disponivel(Pessoa, Horario).
+
+% Para testar: cria lista com os dias/horarios disponiveis de uma pessoa
 dias_disponiveis(Pessoa, DiasDisponiveis) :-
 	dias_semana(Dias),
 	findall(Dia, (
@@ -72,6 +78,11 @@ horarios_disponiveis(Pessoa, HorariosDisponiveis) :-
 		horario(Horario),
 		disponivel(Pessoa, Horario)
 	), HorariosDisponiveis).
+
+dias_horarios_disponiveis(Dia, Horario, Disponibilidade) :-
+	findall(Pessoa, (
+		disponivel_dia_horario(Pessoa, Dia, Horario)
+	), Disponibilidade).
 
 % REGRAS DE PREFERENCIA
 prefere(Pessoa, Horario) :-
@@ -101,7 +112,7 @@ prefere(Pessoa, Dia) :-
 	N >= NInicio,
 	N =< NFim.
 
-% Cria lista com os dias disponiveis de uma pessoa
+% Para testar: cria lista com os dias disponiveis de uma pessoa
 dias_preferencia(Pessoa, DiasPreferencia) :-
 	dias_semana(Dias),
 	findall(Dia, (
@@ -113,54 +124,55 @@ dias_preferencia(Pessoa, DiasPreferencia) :-
 
 % MONTAR CRONOGRAMA
 
-% montar_tuplas_dia(Dia, TuplasDia) :-
-% 	findall((Horario, Pessoa, Funcao), (
-% 		turno(_, Horario, Funcao),
-% 		disponivel(Pessoa, Horario),
-% 		disponivel(Pessoa, Dia)
-% 	), TuplasDia).
+% Gera o cronograma de um dia
+cronograma_dia(Dia, Cronograma) :-
+	% Obtem lista dos horarios
+	findall(Horario, horario(Horario), Horarios),
+	% Retorna cronograma passando por cada horario
+	cronograma_horarios(Dia, Horarios, Cronograma).
 
-montar_tuplas_dia(Dia, TuplasDia) :-
-	findall(TuplasHorario, (
-		horario(Horario),
-		montar_tuplas_horario(TuplasHorario, Dia, Horario)
-		), TuplasDia).
+% Caso base: não há mais horários, o cronograma é vazio
+cronograma_horarios(_, [], []).
 
-montar_tuplas_horario(TuplasHorario, Dia, Horario, MaxPessoas) :-
-	turno(MaxPessoas, Horario, Funcao),
-	findall((Horario, Pessoa, Funcao), (
-			disponivel(Pessoa, Horario),
-			disponivel(Pessoa, Dia)
-		), TuplasHorario).
+% Caso 1: Grupos é uma lista vazia [] (nao ha pessoas disponiveis nesse horario)
+cronograma_horarios(Dia, [Horario | Resto], [[] | RestoGrupos]) :-
+	grupos_possiveis(Dia, Horario, Grupos),
+	Grupos == [], !,
+	cronograma_horarios(Dia, Resto, RestoGrupos).
+
+% Caso 2: Gera os grupos possiveis do horario e escolhe um grupo possível
+% Continua até acabar horários
+cronograma_horarios(Dia, [Horario | Resto], [Grupo | RestoGrupos]) :-
+	grupos_possiveis(Dia, Horario, Grupos),
+	member(Grupo, Grupos),
+	cronograma_horarios(Dia, Resto, RestoGrupos).
+
+% Retorna os grupos possiveis de um determinado turno
+grupos_possiveis(Dia, Horario, Grupos) :-
+	turno(Quantidade, Horario, Funcao),
+	% Acha todas as pessoas disponiveis naquele dia e horario
+	findall((Horario, Pessoa, Funcao), disponivel_dia_horario(Pessoa, Dia, Horario), Disponiveis),
+	% Acha toda as combinacoes possiveis da lista disponiveis com a quantidade do turno
+	findall(Grupo, combinar(Quantidade, Disponiveis, Grupo), Grupos).
 
 remover_pessoa(TuplasHorarioEntrada, TuplasHorarioSaida, MaxPessoas) :-
-	(proper_length(TuplasHorarioEntrada, MaxPessoas),
-	TuplasHorarioSaida = TuplasHorarioEntrada);
-	(write(MaxPessoas),
-	nth0(_, TuplasHorarioEntrada, Element),
-	%write(Element),
-	delete(TuplasHorarioEntrada, Element, TuplasHorarioMeio),
-	remover_pessoa(TuplasHorarioMeio, TuplasHorarioSaida, MaxPessoas)).
 	
+	delete(TuplasHorarioEntrada, Element, TuplasHorarioMeio),
+	remover_pessoa(TuplasHorarioMeio, TuplasHorarioSaida, MaxPessoas).
+	
+filtrar_horario(TuplasHorarioEntrada, TuplasDisponiveisFiltrada) :-
+	remover_pessoa(TuplasHorarioEntrada, TuplasHorarioFiltrada).
 
-
-%filtrar_horario(TuplasHorarioFiltrada, seg, 10)
-filtrar_horario(TuplasHorarioFiltrada, Dia, Horario) :-
-	montar_tuplas_horario(TuplasHorario, Dia, Horario, MaxPessoas),
-	%nth0(MaxPessoas, TuplasHorario, Element),
-	%delete(TuplasHorario, Element, TuplasHorarioFiltrada).
-	remover_pessoa(TuplasHorario, TuplasHorarioFiltrada, MaxPessoas).
-
-% filtrar_dia(TuplasDia, TuplasFiltradas) :-
-% 	filtrar_dia(TuplasDia, TuplasFiltradas, 0).
-
-% filtrar_dia(TuplasDia, TuplasFiltradas, It) :-
-% 	turno(N, Horario, _),
-% 	ItNova is It + 1,
-% 	N >= ItNova,
-
-montar_cronograma(TuplasSegunda, TuplasTerca) :-
-	montar_tuplas_dia(seg, TuplasSegunda),
-	montar_tuplas_dia(ter, TuplasTerca).
-
-
+% PREDICADOS ADICIONAIS
+% combinar(+Quantidade, +Lista, -Combinacoes)
+% Caso base: lista vazia tem combinações com uma lista vazia
+combinar(0, _, []).
+% Caso 1: inclui o primeiro elemento nas combinacoes, encontra K-1 elementos entre os restantes
+combinar(K, [X | T1], [X | T2]) :-
+	K > 0, 
+	K1 is K -1,
+	combinar(K1, T1, T2).
+% Caso 2: ignora o primeiro elemento na lista de combinações, encontra K elementos entre os restantes
+combinar(K, [_ | T1], T2) :-
+	K > 0,
+	combinar(K, T1, T2).
